@@ -160,7 +160,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="mt-8 text-center text-gray-600 text-xs">
-          IronTrack Pro v1.4.1
+          IronTrack Pro v1.4.2
         </div>
       </div>
     </div>

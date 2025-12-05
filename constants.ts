@@ -263,6 +263,10 @@ export const INITIAL_EXERCISES: ExerciseBase[] = [
         name: "Rodillo"
       },
       {
+        id: "v_abs_rod_brazos",
+        name: "Rodillo apoyo brazos"
+      },
+      {
         id: "v_abs_placa",
         name: "Placa ruedines"
       },
