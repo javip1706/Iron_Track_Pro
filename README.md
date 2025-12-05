@@ -1,11 +1,29 @@
-<div align="center">
+# Migración de IronTrack Pro
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+He revisado las capturas de pantalla de tu estructura de archivos. Para poder ejecutar, depurar y mejorar la aplicación en este chat, necesito recrear los archivos esenciales.
 
-  <h1>Built with AI Studio</h2>
+Por favor, proporciona el contenido de texto de los siguientes archivos:
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+### 1. Raíz y Configuración
+*   `types.ts`
+*   `constants.ts`
+*   `App.tsx`
+*   `package.json` (Solo necesito ver las dependencias para saber qué librerías importar).
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+### 2. Servicios
+*   `services/storage.ts`
 
-</div>
+### 3. Páginas (Todo el contenido de la carpeta pages)
+*   `pages/Dashboard.tsx`
+*   `pages/WorkoutSession.tsx`
+*   `pages/ExerciseLibrary.tsx`
+*   `pages/RoutineBuilder.tsx`
+*   `pages/BodyStats.tsx`
+*   `pages/Settings.tsx`
+*   `pages/WorkoutHistory.tsx`
+
+### 4. Componentes
+*   `components/RestTimer.tsx`
+*   (Y cualquier otro componente que tengas en esa carpeta si hay más de uno).
+
+Una vez que pegues el código, generaré la estructura completa para que puedas ver la app funcionando en el panel de Preview.
