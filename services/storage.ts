@@ -294,11 +294,43 @@ export const StorageService = {
     return JSON.stringify(backup, null, 2);
   },
 
-  restoreData: async (data: Partial<AppBackup>, mode: 'merge' | 'overwrite' = 'overwrite'): Promise<boolean> => {
-    try {
-      if (mode === 'overwrite') {
-        if (data.routines) await StorageService.saveRoutines(data.routines);
-        if (data.exercises) await StorageService.saveExercises(data.exercises);
-        if (data.stats) await StorageService.saveBodyStats(data.stats);
-        if (data.logs) {
-          // Elimi
+restoreData: async (data: Partial<AppBackup>, mode: 'merge' | 'overwrite' = 'overwrite'): Promise<boolean> => {
+  try {
+    if (mode === 'overwrite') {
+      if (data.routines) await StorageService.saveRoutines(data.routines);
+      if (data.exercises) await StorageService.saveExercises(data.exercises);
+      if (data.stats) await StorageService.saveBodyStats(data.stats);
+
+      if (data.logs) {
+        // Eliminar los logs existentes y reemplazarlos por los nuevos
+        await StorageService.saveWorkoutLogs(data.logs);
+      }
+    } else {
+      // MODO MERGE: fusiona con los datos existentes
+      if (data.routines) {
+        const existing = await StorageService.getRoutines();
+        await StorageService.saveRoutines([...existing, ...data.routines]);
+      }
+
+      if (data.exercises) {
+        const existing = await StorageService.getExercises();
+        await StorageService.saveExercises([...existing, ...data.exercises]);
+      }
+
+      if (data.stats) {
+        const existing = await StorageService.getBodyStats();
+        await StorageService.saveBodyStats([...existing, ...data.stats]);
+      }
+
+      if (data.logs) {
+        const existing = await StorageService.getWorkoutLogs();
+        await StorageService.saveWorkoutLogs([...existing, ...data.logs]);
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Error restoring data:", err);
+    return false;
+  }
+},
