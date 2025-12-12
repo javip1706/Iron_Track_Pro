@@ -1,52 +1,52 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#0f172a" />
-    <title>IronTrack Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              dark: '#0f172a',
-              primary: '#0ea5e9',
-              surface: '#1e293b',
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>IronTrack Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: '#0f172a',
+            primary: '#0ea5e9',
+            surface: '#1e293b',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
           }
         }
       }
-    </script>
-    <style>
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-    </style>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://cdn.jsdelivr.net/npm/react@19.2.0/+esm",
-        "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
-        "lucide-react": "https://cdn.jsdelivr.net/npm/lucide-react@0.555.0/+esm",
-        "recharts": "https://cdn.jsdelivr.net/npm/recharts@3.5.1/+esm",
-        "react-router-dom": "https://cdn.jsdelivr.net/npm/react-router-dom@7.9.6/+esm"
-      }
     }
-    </script>
-    <link rel="stylesheet" href="/index.css">
-  </head>
-  <body class="bg-dark text-gray-100">
-    <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
-  </body>
+  </script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://cdn.skypack.dev/react@18.2.0",
+      "react-dom": "https://cdn.skypack.dev/react-dom@18.2.0",
+      "lucide-react": "https://cdn.skypack.dev/lucide-react@0.263.1",
+      "recharts": "https://cdn.skypack.dev/recharts@2.10.3",
+      "react-router-dom": "https://cdn.skypack.dev/react-router-dom@6.16.0"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-dark text-gray-100">
+  <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
 </html>
