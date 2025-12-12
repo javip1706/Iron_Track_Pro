@@ -344,3 +344,4 @@ restoreData: async (data: Partial<AppBackup>, mode: 'merge' | 'overwrite' = 'ove
     return false;
   }
 },
+  };
