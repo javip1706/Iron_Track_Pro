@@ -9,3 +9,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+
+  # Supabase environment variables
+# These should be set in Netlify's Site Settings > Build & deploy > Environment
+# For local development, copy .env.example to .local.env and fill in your values
