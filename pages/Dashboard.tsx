@@ -6,6 +6,7 @@ import { BeforeInstallPromptEvent } from '../types';
 import { Routine } from '../types';
 
 export const Dashboard: React.FC = () => {
+    console.log('Dashboard rendered');
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [activeRoutine, setActiveRoutine] = useState<Routine | undefined>();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
