@@ -217,6 +217,16 @@ export const StorageService = {
     }
   },
 
+   saveWorkoutLogs: async (logs: WorkoutSessionLog[]) => {
+    try {
+      for (const log of logs) {
+        await StorageService.saveWorkoutLog(log);
+      }
+    } catch (error) {
+      console.error('Error saving workout logs:', error);
+    }
+  },
+
   // === LOCAL STORAGE (para datos temporales) ===
   getActiveRoutineId: (): string | null => {
     return localStorage.getItem(KEYS.ACTIVE_ROUTINE);
