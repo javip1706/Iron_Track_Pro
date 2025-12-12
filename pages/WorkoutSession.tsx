@@ -1,57 +1,89 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, RefreshCw, Link as LinkIcon, ChevronUp, ChevronDown, Plus, Minus, Timer, MoreVertical, Trash2, X, Check, History, Edit3, Save, LogOut, Download } from 'lucide-react';
-import { StorageService } from '../services/storage';
-import { Routine, RoutineDay, ScheduledExercise, SetLog, WorkoutSessionLog, ExerciseBase, ExerciseType, MuscleGroup, CompletedExerciseLog } from '../types';
-import { RestTimer } from '../components/RestTimer';
+import React, { useEffect, useState, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  CheckCircle,
+  RefreshCw,
+  Link as LinkIcon,
+  ChevronUp,
+  ChevronDown,
+  Plus,
+  Minus,
+  Timer,
+  MoreVertical,
+  Trash2,
+  X,
+  History,
+  Edit3,
+  Save,
+  LogOut,
+  Download,
+} from "lucide-react";
+import { RestTimer } from "../components/RestTimer";
+import {
+  Routine,
+  RoutineDay,
+  ScheduledExercise,
+  SetLog,
+  WorkoutSessionLog,
+  ExerciseBase,
+  ExerciseType,
+  MuscleGroup,
+  CompletedExerciseLog,
+} from "../types";
+
+// Temporary storage abstraction (to be migrated to Supabase)
+import { StorageService } from "../services/storage";
 
 // Helper to format dates like "W47-25"
 const getWeekId = (date: Date) => {
-    const startOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDays = (date.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNum = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
-    return `W${weekNum}-${date.getFullYear().toString().substr(-2)}`;
+  const startOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDays = (date.getTime() - startOfYear.getTime()) / 86400000;
+  const weekNum = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
+  return `W${weekNum}-${date.getFullYear().toString().substr(-2)}`;
 };
 
-const REST_OPTIONS = [5, 10, 30, 45, 60, , 75, 90, 120];
+const REST_OPTIONS = [5, 10, 30, 45, 60, 75, 90, 120];
 
 export const WorkoutSession: React.FC = () => {
   const navigate = useNavigate();
   const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
   const [selectedDay, setSelectedDay] = useState<RoutineDay | null>(null);
   const [exercisesDB, setExercisesDB] = useState<ExerciseBase[]>([]);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   // Logs state
   const [sessionLogs, setSessionLogs] = useState<Record<string, SetLog[]>>({});
-  
+
   // Start time for duration calculation
   const startTimeRef = useRef<number>(Date.now());
-  
+
   // Timer State
   const [timerState, setTimerState] = useState({ isOpen: false, seconds: 60, exerciseId: '', setIndex: -1 });
-  
+
   // Mini Timer State (for BIIO 5s)
   const [miniTimer, setMiniTimer] = useState<{id: string, active: boolean}>({id: '', active: false});
-  
+
   // Audio ref for Beeps
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // UI State
   const [viewMode, setViewMode] = useState<'select-day' | 'active'>('select-day');
-  
+
   // New Exercise Selector State
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
-  const [expandedSelectorGroup, setExpandedSelectorGroup] = useState<string | null>(null); // Accordion state
-  
+  const [expandedSelectorGroup, setExpandedSelectorGroup] = useState<string | null>(null);
+
   // Edit Modal State
   const [editingExerciseIndex, setEditingExerciseIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{exerciseBaseId: string, variantId: string, targetSets: number, targetReps: string, restTimeSeconds: number, type: ExerciseType} | null>(null);
-  
+
   // Quick Edit Rest Time State
   const [editingRestTimeExId, setEditingRestTimeExId] = useState<string | null>(null);
 
   // History Popover State
-  const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null); // variantId
+  const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null);
+  const [exerciseHistory, setExerciseHistory] = useState<{date: number, sets: any[]}[]>([]);
 
   // Menu State (3 dots)
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
@@ -60,33 +92,53 @@ export const WorkoutSession: React.FC = () => {
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [saveAsRoutineName, setSaveAsRoutineName] = useState('');
 
-  // Auto-Save Effect with DEBOUNCE (Performance Optimization)
+  // Auto-Save Effect with DEBOUNCE
   useEffect(() => {
     if (viewMode === 'active' && selectedDay) {
-        // Set a timeout to save after 1 second of inactivity
         const timer = setTimeout(() => {
             StorageService.saveSessionDraft(sessionLogs, selectedDay.id);
         }, 1000);
-
-        // Clear timeout if dependencies change (user is still typing)
         return () => clearTimeout(timer);
     }
   }, [sessionLogs, viewMode, selectedDay]);
 
+  // Initial Load
   useEffect(() => {
-    const rId = StorageService.getActiveRoutineId();
-    const routines = StorageService.getRoutines();
-    const exDB = StorageService.getExercises();
-    setExercisesDB(exDB);
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const rId = StorageService.getActiveRoutineId();
+        const routines = await StorageService.getRoutines();
+        const exDB = await StorageService.getExercises();
+        setExercisesDB(exDB);
 
-    const routine = routines.find(r => r.id === rId);
-    if (routine) {
-        setActiveRoutine(routine);
-    } else {
-        alert("Por favor selecciona una rutina activa primero.");
-        navigate('/routines');
-    }
+        const routine = routines.find(r => r.id === rId);
+        if (routine) {
+            setActiveRoutine(routine);
+        } else {
+            alert("Por favor selecciona una rutina activa primero.");
+            navigate('/routines');
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, [navigate]);
+
+  // Load Exercise History when needed
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (showHistoryFor) {
+        const history = await StorageService.getExerciseHistory(showHistoryFor);
+        setExerciseHistory(history);
+      }
+    };
+    loadHistory();
+  }, [showHistoryFor]);
 
   // BIIO Timer Logic with Beep
   useEffect(() => {
@@ -95,7 +147,7 @@ export const WorkoutSession: React.FC = () => {
           timeout = setTimeout(() => {
               playShortBeep();
               setMiniTimer(prev => ({...prev, active: false})); 
-          }, 5000); // 5 seconds for BIIO
+          }, 5000);
       }
       return () => clearTimeout(timeout);
   }, [miniTimer.active]);
@@ -113,7 +165,6 @@ export const WorkoutSession: React.FC = () => {
           osc.connect(gain);
           gain.connect(ctx.destination);
 
-          // Soft beep
           osc.type = 'sine';
           osc.frequency.setValueAtTime(500, ctx.currentTime);
           gain.gain.setValueAtTime(0.1, ctx.currentTime);
@@ -127,10 +178,9 @@ export const WorkoutSession: React.FC = () => {
   };
 
   const startDay = (day: RoutineDay) => {
-      setSelectedDay(JSON.parse(JSON.stringify(day))); // Deep copy to allow local reordering
+      setSelectedDay(JSON.parse(JSON.stringify(day)));
       setSaveAsRoutineName(`${day.name} (Modificado)`);
 
-      // Check for Draft
       const draft = StorageService.getSessionDraft();
       let initLogs: Record<string, SetLog[]> = {};
       let restoredStartTime = Date.now();
@@ -138,10 +188,6 @@ export const WorkoutSession: React.FC = () => {
       let loadDraft = false;
       if (draft && draft.dayId === day.id) {
           try {
-             // Basic confirm is safer in pure React environments than custom modals for initial load
-             // But we can just load it if it exists or ask. 
-             // Using confirm here as requested by user flow previously
-             // eslint-disable-next-line no-restricted-globals
              if(confirm("Se ha encontrado una sesión no finalizada. ¿Quieres recuperarla?")) {
                  loadDraft = true;
              }
@@ -155,7 +201,6 @@ export const WorkoutSession: React.FC = () => {
           const storedTime = StorageService.getSessionStartTime();
           if (storedTime) restoredStartTime = storedTime;
       } else {
-          // Initialize fresh logs
           day.exercises.forEach(ex => {
               initLogs[ex.id] = Array(ex.targetSets).fill(null).map((_, i) => ({
                   setNumber: i + 1,
@@ -188,15 +233,12 @@ export const WorkoutSession: React.FC = () => {
           exLogs[setIndex] = { ...exLogs[setIndex], completed: isCompleting };
           
           if (isCompleting) {
-             // Only open timer if NOT linked to next
              if (!linkedToNext) {
                  setTimerState({ isOpen: true, seconds: restTime, exerciseId: exId, setIndex: setIndex });
              } else {
-                 // If linked, we assume 0 rest or immediate transition, so we just mark complete
                  exLogs[setIndex].actualRestTime = 0;
              }
           } else {
-              // Reset actual rest time if unchecking
                exLogs[setIndex].actualRestTime = undefined;
           }
 
@@ -239,7 +281,6 @@ export const WorkoutSession: React.FC = () => {
   };
 
   const triggerMiniTimer = (id: string) => {
-      // Initialize/Resume audio context on user interaction
       if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
@@ -255,19 +296,16 @@ export const WorkoutSession: React.FC = () => {
   };
 
   const handleExitWithoutSaving = () => {
-      // Remove confirm, just execute
       StorageService.clearSessionDraft();
       navigate('/');
   };
 
-  const finalizeSession = (saveAsNew: boolean) => {
+  const finalizeSession = async (saveAsNew: boolean) => {
       if (!activeRoutine || !selectedDay) return;
       
-      // Calculate duration
       const endTime = Date.now();
       const duration = endTime - startTimeRef.current;
 
-      // 1. Construct the log with detailed snapshots
       const completedExercises: CompletedExerciseLog[] = selectedDay.exercises.map(ex => {
           const base = exercisesDB.find(e => e.id === ex.exerciseBaseId);
           const variant = base?.variants.find(v => v.id === ex.variantId);
@@ -294,19 +332,18 @@ export const WorkoutSession: React.FC = () => {
           exercises: completedExercises
       };
 
-      StorageService.saveWorkoutLog(logEntry);
-      StorageService.clearSessionDraft(); // Clear draft on successful save
+      await StorageService.saveWorkoutLog(logEntry);
+      StorageService.clearSessionDraft();
 
-      // 2. Optional: Save as new Routine
       if (saveAsNew && saveAsRoutineName.trim()) {
           const newRoutine: Routine = {
               id: Date.now().toString(),
               name: saveAsRoutineName,
-              days: [{ ...selectedDay, name: 'Día Único' }], // Simplified
+              days: [{ ...selectedDay, name: 'Día Único' }],
               createdAt: Date.now()
           };
-          const currentRoutines = StorageService.getRoutines();
-          StorageService.saveRoutines([...currentRoutines, newRoutine]);
+          const currentRoutines = await StorageService.getRoutines();
+          await StorageService.saveRoutines([...currentRoutines, newRoutine]);
       }
 
       setShowFinishModal(false);
@@ -324,15 +361,11 @@ export const WorkoutSession: React.FC = () => {
       setSelectedDay({ ...selectedDay, exercises: newExercises });
   };
 
-  // Copy History Logic Fixed
   const copyHistoryToCurrent = (exId: string, historySets: SetLog[]) => {
-      // Direct copy without confirmation to avoid browser blocks
       setSessionLogs(prev => {
-          // Create deep copy of previous state
           const newState = JSON.parse(JSON.stringify(prev));
           const currentLogs = newState[exId] || [];
           
-          // Map history sets to current sets
           const updatedLogs = currentLogs.map((log: SetLog, index: number) => {
               const matchingHistorySet = historySets[index];
               if (matchingHistorySet) {
@@ -342,7 +375,7 @@ export const WorkoutSession: React.FC = () => {
                       reps: matchingHistorySet.reps,
                       reps2: matchingHistorySet.reps2,
                       reps3: matchingHistorySet.reps3,
-                      completed: false // Keep unchecked
+                      completed: false
                   };
               }
               return log;
@@ -353,8 +386,6 @@ export const WorkoutSession: React.FC = () => {
       });
       setShowHistoryFor(null);
   };
-
-  // --- Dynamic Exercise Management ---
 
   const addExerciseToSession = (exerciseBase: ExerciseBase, variantId: string) => {
       if (!selectedDay) return;
@@ -368,7 +399,6 @@ export const WorkoutSession: React.FC = () => {
           type: ExerciseType.Normal
       };
       
-      // Add to logs
       const initLogs = Array(3).fill(null).map((_, i) => ({
         setNumber: i + 1,
         weight: 0,
@@ -383,18 +413,16 @@ export const WorkoutSession: React.FC = () => {
 
   const removeExerciseFromSession = (index: number) => {
       if (!selectedDay) return;
-      // Removed native confirm block. Immediate action.
       
       const exId = selectedDay.exercises[index].id;
       const newExercises = selectedDay.exercises.filter((_, i) => i !== index);
       
-      // Clean logs
       const newLogs = {...sessionLogs};
       delete newLogs[exId];
       
       setSelectedDay({...selectedDay, exercises: newExercises});
       setSessionLogs(newLogs);
-      setOpenMenuIndex(null); // Close menu if open
+      setOpenMenuIndex(null);
   };
 
   const startEditingExercise = (index: number) => {
@@ -409,7 +437,7 @@ export const WorkoutSession: React.FC = () => {
           restTimeSeconds: ex.restTimeSeconds,
           type: ex.type
       });
-      setOpenMenuIndex(null); // Close menu
+      setOpenMenuIndex(null);
   };
 
   const saveExerciseEdit = () => {
@@ -436,6 +464,17 @@ export const WorkoutSession: React.FC = () => {
       setSelectedDay({...selectedDay, exercises: newExercises});
       setEditingRestTimeExId(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-400">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Selection Screen
   if (viewMode === 'select-day' && activeRoutine) {
@@ -492,14 +531,11 @@ export const WorkoutSession: React.FC = () => {
                 const base = exercisesDB.find(e => e.id === ex.exerciseBaseId);
                 const variant = base?.variants.find(v => v.id === ex.variantId);
                 const sets = sessionLogs[ex.id] || [];
-                const isLinked = ex.linkedToNext;
+                const isLinked = (ex as any).linkedToNext;
                 const isBIIO = ex.type === ExerciseType.BIIO;
                 const isEditing = editingExerciseIndex === exIndex;
                 const isHistoryOpen = showHistoryFor === ex.variantId;
                 const isMenuOpen = openMenuIndex === exIndex;
-                
-                // Fetch History if open
-                const history = isHistoryOpen ? StorageService.getExerciseHistory(ex.variantId) : [];
 
                 return (
                     <div key={`${ex.id}-${exIndex}`} className="relative"> 
@@ -514,7 +550,6 @@ export const WorkoutSession: React.FC = () => {
                                 <div className="flex-1">
                                     <span className="text-[10px] uppercase font-bold text-gray-500 bg-gray-900 px-1 rounded mb-1 inline-block">{base?.muscleGroup}</span>
                                     {isEditing ? (
-                                        // Edit Mode: Allow Changing Exercise Base
                                         <div className="flex flex-col gap-2 mt-1 w-full max-w-[240px]">
                                             <label className="text-[10px] text-gray-400">Ejercicio:</label>
                                             <select 
@@ -526,11 +561,10 @@ export const WorkoutSession: React.FC = () => {
                                                     setEditForm(prev => prev ? {
                                                         ...prev, 
                                                         exerciseBaseId: newBaseId,
-                                                        variantId: newBase?.variants[0]?.id || '' // Reset variant to first available
+                                                        variantId: newBase?.variants[0]?.id || ''
                                                     } : null);
                                                 }}
                                             >
-                                                {/* Filter exercises by the current muscle group to keep it sane */}
                                                 {exercisesDB.filter(e => e.muscleGroup === base?.muscleGroup).map(e => (
                                                     <option key={e.id} value={e.id}>{e.name}</option>
                                                 ))}
@@ -542,7 +576,6 @@ export const WorkoutSession: React.FC = () => {
                                                 value={editForm?.variantId}
                                                 onChange={e => setEditForm(prev => prev ? {...prev, variantId: e.target.value} : null)}
                                             >
-                                                {/* Re-find base based on editForm selection to show correct variants */}
                                                 {exercisesDB.find(e => e.id === editForm?.exerciseBaseId)?.variants.map(v => (
                                                     <option key={v.id} value={v.id}>{v.name}</option>
                                                 ))}
@@ -558,7 +591,6 @@ export const WorkoutSession: React.FC = () => {
                                             </select>
                                         </div>
                                     ) : (
-                                        // View Mode
                                         <>
                                             <div className="flex items-center gap-2">
                                                 <h3 className="font-bold text-white text-lg">{base?.name}</h3>
@@ -627,215 +659,176 @@ export const WorkoutSession: React.FC = () => {
                                                     <span className="text-[10px] text-gray-400">Reps:</span>
                                                     <input type="text" className="w-12 bg-gray-700 text-xs text-center rounded" value={editForm?.targetReps} onChange={e => setEditForm(prev => prev ? {...prev, targetReps: e.target.value} : null)} />
                                                  </div>
-                                                 <div className="flex gap-2 mt-1">
-                                                     <button onClick={() => setEditingExerciseIndex(null)} className="text-red-400"><X size={14}/></button>
-                                                     <button onClick={saveExerciseEdit} className="text-green-400"><Check size={14}/></button>
+                                                 <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-gray-400">Desc:</span>
+                                                    <input type="number" className="w-16 bg-gray-700 text-xs text-center rounded" value={editForm?.restTimeSeconds} onChange={e => setEditForm(prev => prev ? {...prev, restTimeSeconds: parseInt(e.target.value)} : null)} />
+                                                 </div>
+                                                 <div className="flex gap-2 mt-2">
+                                                    <button onClick={saveExerciseEdit} className="bg-primary text-white px-3 py-1 rounded">Guardar</button>
+                                                    <button onClick={() => { setEditingExerciseIndex(null); setEditForm(null); }} className="bg-gray-700 text-white px-3 py-1 rounded">Cancelar</button>
                                                  </div>
                                             </div>
                                         ) : (
-                                            <>
-                                                <div className="text-xs text-gray-400">Obj: {ex.targetSets} x {ex.targetReps}</div>
-                                                
-                                                {/* Rest Time Config */}
-                                                {isLinked ? (
-                                                    <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-primary font-bold opacity-80">
-                                                        <LinkIcon size={10} /> Sin descanso
-                                                    </div>
-                                                ) : (
-                                                    editingRestTimeExId === ex.id ? (
-                                                        <div className="flex items-center gap-1 mt-1">
-                                                            <span className="text-xs text-gray-400">Desc:</span>
-                                                            <select
-                                                                autoFocus
-                                                                className="bg-gray-700 text-xs text-white p-1 rounded text-center outline-none border border-primary"
-                                                                value={ex.restTimeSeconds}
-                                                                onChange={(e) => {
-                                                                    updateRestTime(exIndex, parseInt(e.target.value));
-                                                                    setEditingRestTimeExId(null);
-                                                                }}
-                                                                onBlur={() => setEditingRestTimeExId(null)}
-                                                            >
-                                                                {REST_OPTIONS.map(time => (
-                                                                    <option key={time} value={time}>{time}s</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    ) : (
-                                                        <button 
-                                                            onClick={() => setEditingRestTimeExId(ex.id)}
-                                                            className="text-xs text-gray-500 hover:text-primary hover:bg-gray-700 px-1 rounded transition-colors flex items-center justify-end gap-1 mt-1"
-                                                        >
-                                                            Desc: {ex.restTimeSeconds}s <Edit3 size={10} />
-                                                        </button>
-                                                    )
-                                                )}
-                                            </>
+                                            <div className="text-[10px] text-gray-400">Desc: {ex.restTimeSeconds}s</div>
                                         )}
                                     </div>
                                 </div>
                             </div>
-
-                            {/* History Panel */}
-                            {isHistoryOpen && (
-                                <div className="bg-gray-900/90 p-4 border-b border-primary/30 text-sm animate-in slide-in-from-top-2 shadow-inner">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h4 className="text-primary font-bold flex items-center gap-2">
-                                            <History size={16} /> Historial Reciente
-                                        </h4>
-                                        <button onClick={() => setShowHistoryFor(null)} className="bg-gray-800 p-1 rounded-full hover:bg-gray-700"><X size={16} /></button>
-                                    </div>
-                                    {history.length === 0 ? (
-                                        <p className="text-gray-500 italic text-center py-4">No hay registros anteriores para esta variante.</p>
-                                    ) : (
-                                        <div className="flex gap-4 overflow-x-auto pb-2 snap-x no-scrollbar">
-                                            {history.map((entry, hIdx) => (
-                                                <div key={hIdx} className="bg-gray-800 rounded-xl p-3 border border-gray-600 shadow-lg min-w-[160px] snap-center flex-shrink-0">
-                                                    <div className="text-white font-bold text-xs mb-2 border-b border-gray-600 pb-2 flex justify-between items-center">
-                                                        <span className="capitalize">{new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                                                        <button 
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                copyHistoryToCurrent(ex.id, entry.sets);
-                                                            }} 
-                                                            type="button"
-                                                            className="text-primary hover:text-white p-2 rounded hover:bg-gray-700 active:scale-95 transition-transform" 
-                                                            title="Copiar datos"
-                                                        >
-                                                            <Download size={16} />
-                                                        </button>
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] text-gray-500 px-1">
-                                                            <span>#</span>
-                                                            <span>Kg</span>
-                                                            <span>Reps</span>
-                                                        </div>
-                                                        {entry.sets.filter((s:any) => s.completed || s.weight > 0 || s.reps > 0).map((s:any, sIdx:number) => (
-                                                            <div key={sIdx} className="flex justify-between items-center text-xs bg-dark/40 p-1.5 rounded border border-gray-700/50">
-                                                                <span className="text-gray-500 w-4 text-[10px]">{s.setNumber}</span>
-                                                                <span className="font-bold text-white">{s.weight} <span className="text-[9px] font-normal text-gray-500">kg</span></span>
-                                                                <span className="font-mono text-primary">
-                                                                    {s.reps}
-                                                                    {s.reps2 ? `-${s.reps2}` : ''}
-                                                                    {s.reps3 ? `-${s.reps3}` : ''}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Sets Table */}
-                            <div className="p-2">
-                                <div className="grid grid-cols-10 gap-1 mb-2 text-xs text-gray-500 font-bold text-center items-center">
-                                    <div className="col-span-1">#</div>
-                                    <div className="col-span-2">KG</div>
-                                    <div className={`${isBIIO ? 'col-span-5' : 'col-span-3'}`}>REPS</div>
-                                    <div className="col-span-2">HECHO</div>
-                                </div>
-                                {sets.map((set, idx) => {
-                                    const isMiniTimerActive = miniTimer.id.startsWith(`${ex.id}-${idx}`) && miniTimer.active;
-                                    
-                                    return (
-                                    <div key={idx} className={`grid grid-cols-10 gap-1 mb-3 items-center relative ${set.completed ? 'opacity-50' : 'opacity-100'} transition-opacity`}>
-                                        <div className="col-span-1 text-center text-gray-400 font-mono">{idx + 1}</div>
-                                        
-                                        {/* Weight */}
-                                        <div className="col-span-2">
-                                            <input 
-                                                type="number" 
-                                                placeholder="0"
-                                                value={set.weight || ''}
-                                                onChange={(e) => updateLog(ex.id, idx, 'weight', parseFloat(e.target.value))}
-                                                className="w-full bg-dark border border-gray-600 rounded p-2 text-center text-lg font-bold focus:border-primary focus:outline-none"
-                                            />
-                                        </div>
-                                        
-                                        {/* Reps */}
-                                        <div className={`${isBIIO ? 'col-span-5 flex gap-1' : 'col-span-3'}`}>
-                                            {isBIIO ? (
-                                                <>
-                                                    <input 
-                                                        type="number" placeholder="R1" value={set.reps || ''}
-                                                        onChange={(e) => updateLog(ex.id, idx, 'reps', parseFloat(e.target.value))}
-                                                        className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
-                                                    />
-                                                    <button 
-                                                        onClick={() => triggerMiniTimer(`${ex.id}-${idx}-1`)} 
-                                                        className={`p-1 rounded ${miniTimer.id === `${ex.id}-${idx}-1` && miniTimer.active ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`}
-                                                    >
-                                                        <Timer size={12} />
-                                                    </button>
-                                                    <input 
-                                                        type="number" placeholder="R2" value={set.reps2 || ''}
-                                                        onChange={(e) => updateLog(ex.id, idx, 'reps2', parseFloat(e.target.value))}
-                                                        className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
-                                                    />
-                                                    <button 
-                                                        onClick={() => triggerMiniTimer(`${ex.id}-${idx}-2`)} 
-                                                        className={`p-1 rounded ${miniTimer.id === `${ex.id}-${idx}-2` && miniTimer.active ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`}
-                                                    >
-                                                        <Timer size={12} />
-                                                    </button>
-                                                    <input 
-                                                        type="number" placeholder="R3" value={set.reps3 || ''}
-                                                        onChange={(e) => updateLog(ex.id, idx, 'reps3', parseFloat(e.target.value))}
-                                                        className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
-                                                    />
-                                                </>
-                                            ) : (
-                                                <input 
-                                                    type="number"
-                                                    placeholder="0"
-                                                    value={set.reps || ''}
-                                                    onChange={(e) => updateLog(ex.id, idx, 'reps', parseFloat(e.target.value))}
-                                                    className="w-full bg-dark border border-gray-600 rounded p-2 text-center text-lg font-bold focus:border-primary focus:outline-none"
-                                                />
-                                            )}
-                                        </div>
-                                        
-                                        {/* Check Button */}
-                                        <div className="col-span-2 flex flex-col items-center justify-center">
-                                            <button 
-                                                onClick={() => toggleSetComplete(ex.id, idx, ex.restTimeSeconds, !!ex.linkedToNext)}
-                                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${set.completed ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                                            >
-                                                <CheckCircle size={20} />
-                                            </button>
-                                            {set.actualRestTime !== undefined && !isLinked && (
-                                                <span className="text-[10px] text-primary mt-1 font-mono">
-                                                    Desc: {set.actualRestTime}s
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )})}
-
-                                {/* Dynamic Set Controls */}
-                                <div className="flex justify-center gap-4 mt-2 border-t border-gray-700 pt-2">
-                                    <button onClick={() => addSet(ex.id)} className="flex items-center gap-1 text-xs text-primary hover:bg-gray-700 px-2 py-1 rounded">
-                                        <Plus size={12} /> Series
-                                    </button>
-                                    {sets.length > 1 && (
-                                        <button onClick={() => removeSet(ex.id)} className="flex items-center gap-1 text-xs text-red-400 hover:bg-gray-700 px-2 py-1 rounded">
-                                            <Minus size={12} /> Series
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
                         </div>
-                        {isLinked && (
-                            <div className="flex justify-center my-[-12px] relative z-20">
-                                <div className="bg-dark border border-primary rounded-full p-1 text-primary shadow-lg shadow-primary/20">
-                                    <LinkIcon size={14} />
+
+                        {/* History Panel */}
+                        {isHistoryOpen && (
+                            <div className="bg-gray-900/90 p-4 border-b border-primary/30 text-sm animate-in slide-in-from-top-2 shadow-inner">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="text-primary font-bold flex items-center gap-2">
+                                        <History size={16} /> Historial Reciente
+                                    </h4>
+                                    <button onClick={() => setShowHistoryFor(null)} className="bg-gray-800 p-1 rounded-full hover:bg-gray-700"><X size={16} /></button>
                                 </div>
+                                {exerciseHistory.length === 0 ? (
+                                    <p className="text-gray-500 italic text-center py-4">No hay registros anteriores para esta variante.</p>
+                                ) : (
+                                    <div className="flex gap-4 overflow-x-auto pb-2 snap-x no-scrollbar">
+                                        {exerciseHistory.map((entry, hIdx) => (
+                                            <div key={hIdx} className="bg-gray-800 rounded-xl p-3 border border-gray-600 shadow-lg min-w-[160px] snap-center flex-shrink-0">
+                                                <div className="text-white font-bold text-xs mb-2 border-b border-gray-600 pb-2 flex justify-between items-center">
+                                                    <span className="capitalize">{new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            copyHistoryToCurrent(ex.id, entry.sets);
+                                                        }} 
+                                                        type="button"
+                                                        className="text-primary hover:text-white p-2 rounded hover:bg-gray-700 active:scale-95 transition-transform" 
+                                                        title="Copiar datos"
+                                                    >
+                                                        <Download size={16} />
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] text-gray-500 px-1">
+                                                        <span>#</span>
+                                                        <span>Kg</span>
+                                                        <span>Reps</span>
+                                                    </div>
+                                                    {entry.sets.filter((s:any) => s.completed || s.weight > 0 || s.reps > 0).map((s:any, sIdx:number) => (
+                                                        <div key={sIdx} className="flex justify-between items-center text-xs bg-dark/40 p-1.5 rounded border border-gray-700/50">
+                                                            <span className="text-gray-500 w-4 text-[10px]">{s.setNumber}</span>
+                                                            <span className="font-bold text-white">{s.weight} <span className="text-[9px] font-normal text-gray-500">kg</span></span>
+                                                            <span className="font-mono text-primary">
+                                                                {s.reps}
+                                                                {s.reps2 ? `-${s.reps2}` : ''}
+                                                                {s.reps3 ? `-${s.reps3}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
+
+                        {/* Sets Table */}
+                        <div className="p-2">
+                            <div className="grid grid-cols-10 gap-1 mb-2 text-xs text-gray-500 font-bold text-center items-center">
+                                <div className="col-span-1">#</div>
+                                <div className="col-span-2">KG</div>
+                                <div className={`${isBIIO ? 'col-span-5' : 'col-span-3'}`}>REPS</div>
+                                <div className="col-span-2">HECHO</div>
+                            </div>
+                            {sets.map((set, idx) => {
+                                const isMiniTimerActive = miniTimer.id.startsWith(`${ex.id}-${idx}`) && miniTimer.active;
+                                
+                                return (
+                                <div key={idx} className={`grid grid-cols-10 gap-1 mb-3 items-center relative ${set.completed ? 'opacity-50' : 'opacity-100'} transition-opacity`}>
+                                    <div className="col-span-1 text-center text-gray-400 font-mono">{idx + 1}</div>
+                                    
+                                    {/* Weight */}
+                                    <div className="col-span-2">
+                                        <input 
+                                            type="number" 
+                                            placeholder="0"
+                                            value={set.weight || ''}
+                                            onChange={(e) => updateLog(ex.id, idx, 'weight', parseFloat(e.target.value))}
+                                            className="w-full bg-dark border border-gray-600 rounded p-2 text-center text-lg font-bold focus:border-primary focus:outline-none"
+                                        />
+                                    </div>
+                                    
+                                    {/* Reps */}
+                                    <div className={`${isBIIO ? 'col-span-5 flex gap-1' : 'col-span-3'}`}>
+                                        {isBIIO ? (
+                                            <>
+                                                <input 
+                                                    type="number" placeholder="R1" value={set.reps || ''}
+                                                    onChange={(e) => updateLog(ex.id, idx, 'reps', parseFloat(e.target.value))}
+                                                    className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
+                                                />
+                                                <button 
+                                                    onClick={() => triggerMiniTimer(`${ex.id}-${idx}-1`)} 
+                                                    className={`p-1 rounded ${miniTimer.id === `${ex.id}-${idx}-1` && miniTimer.active ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`}
+                                                >
+                                                    <Timer size={12} />
+                                                </button>
+                                                <input 
+                                                    type="number" placeholder="R2" value={set.reps2 || ''}
+                                                    onChange={(e) => updateLog(ex.id, idx, 'reps2', parseFloat(e.target.value))}
+                                                    className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
+                                                />
+                                                <button 
+                                                    onClick={() => triggerMiniTimer(`${ex.id}-${idx}-2`)} 
+                                                    className={`p-1 rounded ${miniTimer.id === `${ex.id}-${idx}-2` && miniTimer.active ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`}
+                                                >
+                                                    <Timer size={12} />
+                                                </button>
+                                                <input 
+                                                    type="number" placeholder="R3" value={set.reps3 || ''}
+                                                    onChange={(e) => updateLog(ex.id, idx, 'reps3', parseFloat(e.target.value))}
+                                                    className="w-full bg-dark border border-gray-600 rounded p-1 text-center focus:border-primary"
+                                                />
+                                            </>
+                                        ) : (
+                                            <input 
+                                                type="number"
+                                                placeholder="0"
+                                                value={set.reps || ''}
+                                                onChange={(e) => updateLog(ex.id, idx, 'reps', parseFloat(e.target.value))}
+                                                className="w-full bg-dark border border-gray-600 rounded p-2 text-center text-lg font-bold focus:border-primary focus:outline-none"
+                                            />
+                                        )}
+                                    </div>
+                                    
+                                    {/* Check Button */}
+                                    <div className="col-span-2 flex flex-col items-center justify-center">
+                                        <button 
+                                            onClick={() => toggleSetComplete(ex.id, idx, ex.restTimeSeconds, !!ex.linkedToNext)}
+                                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${set.completed ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                        >
+                                            <CheckCircle size={20} />
+                                        </button>
+                                        {set.actualRestTime !== undefined && !isLinked && (
+                                            <span className="text-[10px] text-primary mt-1 font-mono">
+                                                Desc: {set.actualRestTime}s
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )})}
+
+                            {/* Dynamic Set Controls */}
+                            <div className="flex justify-center gap-4 mt-2 border-t border-gray-700 pt-2">
+                                <button onClick={() => addSet(ex.id)} className="flex items-center gap-1 text-xs text-primary hover:bg-gray-700 px-2 py-1 rounded">
+                                    <Plus size={12} /> Series
+                                </button>
+                                {sets.length > 1 && (
+                                    <button onClick={() => removeSet(ex.id)} className="flex items-center gap-1 text-xs text-red-400 hover:bg-gray-700 px-2 py-1 rounded">
+                                        <Minus size={12} /> Series
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 );
             })}
